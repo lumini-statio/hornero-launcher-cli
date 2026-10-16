@@ -1,6 +1,6 @@
-# HORNERO LAUNCHER
+# HORNERO LAUNCHER CLI
 
-## Launcher de Minecraft java, seguro y de código abierto. Para jugar cualquier versión en _Windows_ y _Linux_.
+## Launcher de Minecraft java por consola de comandos, seguro y de código abierto. Para jugar cualquier versión en _Windows_ y _Linux_.
 
 ### Dependencias
 1. Por el momento, es necesario tener creado previamente el directorio de minecraft en tu sistema operativo.
