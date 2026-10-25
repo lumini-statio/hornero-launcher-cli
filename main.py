@@ -33,7 +33,7 @@ if __name__ == "__main__":
 
         match op:
             case "1":
-                elegir_y_jugar(data, so)
+                elegir_y_jugar(data, so, base)
             case "2":
                 buscar_y_descargar(base, so)
                 print("<*> Listo!\n\n")

@@ -3,26 +3,24 @@ import shlex
 import subprocess
 
 
-def listar(data):
-    data_path = Path(data)
+def listar(base):
+    versions_path = Path(base) / "versions"
     versiones = {}
 
     print("\nVersiones Descargadas:\n")
     i = 1
-    for archivo in data_path.iterdir():
-        if not archivo.is_file():
-            continue
-        if archivo.name.split(".")[1] == "json":
+    for archivo in versions_path.iterdir():
+        if archivo.is_file():
             continue
         
-        print(f"id: {i} - version: {archivo.name.split("_")[1]}")
+        print(f"id: {i} - version: {archivo.name}")
         versiones[f"{i}"] = archivo.name
         i += 1
     print("\n")
     return versiones
 
-def elegir_y_jugar(data, so):
-    versiones = listar(data)
+def elegir_y_jugar(data, so, base):
+    versiones = listar(base)
 
     opt = input("Elegir version indicando su id: ")
     while opt not in versiones.keys():
