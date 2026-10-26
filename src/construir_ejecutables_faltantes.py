@@ -1,13 +1,13 @@
-# Comparar ejecutables existentes en data con las versiones en base/versions
+# Comparar ejecutables existentes en data con las versiones en mc_path/versions
 import json
 from pathlib import Path
-from ensablar_comando import construir_ejecutable
+from src.ensamblar_comando import construir_ejecutable
 
 
-def construct(data, base, so):
+def construct(data, mc_path, so):
     data_path = Path(data)
     data_path.mkdir(exist_ok=True)
-    versions_path = Path(base) / "versions"
+    versions_path = Path(mc_path) / "versions"
 
     # Obtener versiones que ya tienen ejecutable en data
     ejecutables_existentes = set()
@@ -53,7 +53,7 @@ def construct(data, base, so):
                             version_data = json.load(f)
 
                         lanzador = str(data_path / f"lanzador_{version_id}")
-                        construir_ejecutable(version_data, so, base, {"version": version_id}, lanzador)
+                        construir_ejecutable(version_data, so, mc_path, {"version": version_id}, lanzador)
                         print(f"<*> Ejecutable creado para {version_id}\n")
                     except Exception as e:
                         print(f"Error al crear ejecutable para {version_id}: {e}\n")

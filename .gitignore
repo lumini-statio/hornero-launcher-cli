@@ -2,3 +2,4 @@ lanzador_*
 __pycache__
 .vscode
 *logs*
+*mc_path.txt

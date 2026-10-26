@@ -1,7 +1,7 @@
 import hashlib
 import json
 from pathlib import Path
-from .ensablar_comando import construir_ejecutable
+from .ensamblar_comando import construir_ejecutable
 import requests
 
 
@@ -28,7 +28,7 @@ def encontrar_version_coincidente(version_buscada: str):
     return versiones_parecidas
 
 
-def descargar_version(json_version: str, version: dict, base):
+def descargar_version(json_version: str, version: dict, mc_path):
     res = requests.get(version["url"])
     
     sha1 = hashlib.sha1()
@@ -44,13 +44,13 @@ def descargar_version(json_version: str, version: dict, base):
     
     with requests.get(cliente, stream=True, timeout=30) as r:
         r.raise_for_status()
-        with open(f"{base}/versions/{version['version']}/{version['version']}.jar", "wb") as f:
+        with open(f"{mc_path}/versions/{version['version']}/{version['version']}.jar", "wb") as f:
             for chunk in r.iter_content(chunk_size=1024 * 64):
                 f.write(chunk)
                 sha1.update(chunk)
 
 
-def buscar_y_descargar(base, so):
+def buscar_y_descargar(mc_path, so):
     import os
     ver: str = input("> version del juego a buscar: ")
     versiones = encontrar_version_coincidente(ver)
@@ -64,12 +64,12 @@ def buscar_y_descargar(base, so):
     version = versiones[id]
     
     lanzador = f"data/lanzador_{version['version']}"
-    direc = Path(base) / f"versions/{version['version']}"
+    direc = Path(mc_path) / f"versions/{version['version']}"
     direc.mkdir(exist_ok=True)
 
-    json_version = f"{base}/versions/{version['version']}/{version['version']}.json"
-    descargar_version(json_version, version, base)
+    json_version = f"{mc_path}/versions/{version['version']}/{version['version']}.json"
+    descargar_version(json_version, version, mc_path)
 
     with open(json_version, "r", encoding="utf-8") as f:
         data = json.load(f)    
-        construir_ejecutable(data,so,base,version,lanzador)
+        construir_ejecutable(data,so,mc_path,version,lanzador)

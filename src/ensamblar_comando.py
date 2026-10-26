@@ -86,29 +86,50 @@ def construir_comando(data, os_name, *, game_dir, libraries_dir, assets_dir,
     ctx = dict(os_name=os_name, os_arch=os_arch,
                os_version=os_version, features=features)
 
-    # Classpath (solo librerías que aplican al SO + client.jar)
+    # Classpath (librerías que aplican al SO + librerías Maven de Fabric + client.jar)
     sep = ";" if os_name == "windows" else ":"
-    libs = [str(Path(libraries_dir) / l["downloads"]["artifact"]["path"])
-            for l in data["libraries"]
-            if permitido(l.get("rules"), **ctx) and "artifact" in l.get("downloads", {})]
+    libs = []
+    for l in data["libraries"]:
+        if not permitido(l.get("rules"), **ctx):
+            continue
+        if "downloads" in l and "artifact" in l["downloads"]:
+            libs.append(str(Path(libraries_dir) / l["downloads"]["artifact"]["path"]))
+        elif "name" in l:
+            # Formato Maven (ej: librerías de Fabric Loader / Intermediary / Mixin)
+            partes = l["name"].split(":")
+            if len(partes) >= 3:
+                group, artifact, version = partes[0], partes[1], partes[2]
+                classifier = f"-{partes[3]}" if len(partes) >= 4 else ""
+                group_path = group.replace(".", "/")
+                jar_name = f"{artifact}-{version}{classifier}.jar"
+                p = Path(libraries_dir) / group_path / artifact / version / jar_name
+                libs.append(str(p))
+
     classpath = sep.join(libs + [str(client_jar)])
 
+    asset_index = data.get("assetIndex", {})
+    asset_index_id = asset_index.get("id", "") if isinstance(asset_index, dict) else ""
+
     vars_ = {
-        "auth_player_name": username, "version_name": data["id"],
+        "auth_player_name": username, "version_name": data.get("id", ""),
         "game_directory": str(game_dir), "assets_root": str(assets_dir),
-        "assets_index_name": data["assetIndex"]["id"],
+        "assets_index_name": asset_index_id,
         "auth_uuid": uuid, "auth_access_token": access_token,
-        "clientid": "", "auth_xuid": "", "version_type": data["type"],
+        "clientid": "", "auth_xuid": "", "version_type": data.get("type", "release"),
         "natives_directory": str(natives_dir), "launcher_name": launcher_name,
         "launcher_version": launcher_version, "classpath": classpath,
         "path": "",  # ruta del log4j xml si lo descargaste
     }
 
-    args = data["arguments"]
+    args = data.get("arguments", {})
     jvm_usuario = _expandir(args.get("default-user-jvm", []), ctx, vars_) \
         if incluir_default_user_jvm else []
-    jvm = _expandir(args["jvm"], ctx, vars_)
-    game = _limpiar_vacios(_expandir(args["game"], ctx, vars_))
+    jvm = _expandir(args.get("jvm", []), ctx, vars_)
+    game = _limpiar_vacios(_expandir(args.get("game", []), ctx, vars_))
+
+    tiene_cp = any(arg in ("-cp", "-classpath", "--class-path") for arg in jvm)
+    if not tiene_cp:
+        jvm = [*jvm, "-cp", classpath]
 
     if java_path is None:
         java_path = "java.exe" if os_name == "windows" else "java"
@@ -116,16 +137,48 @@ def construir_comando(data, os_name, *, game_dir, libraries_dir, assets_dir,
     return [java_path, *jvm_usuario, *jvm, data["mainClass"], *game]
 
 
-def construir_ejecutable(data, so, base, version, lanzador):
+def construir_ejecutable(data, so, mc_path_str, version, lanzador):
     version_id = version["version"] if isinstance(version, dict) else str(version)
-    base_path = Path(base)
+    mc_path = Path(mc_path_str)
     os_name = "windows" if "win32" in so else ("osx" if "darwin" in so else "linux")
+
+    # Si es un perfil que hereda de una versión base (como Fabric)
+    if "inheritsFrom" in data:
+        inherits_from = data["inheritsFrom"]
+        parent_json_path = mc_path / "versions" / inherits_from / f"{inherits_from}.json"
+        if parent_json_path.exists():
+            with open(parent_json_path, "r", encoding="utf-8") as f:
+                parent_data = json.load(f)
+
+            # Combinar datos de la versión base con los de Fabric
+            merged_data = dict(parent_data)
+            merged_data["id"] = data.get("id", version_id)
+            if "mainClass" in data:
+                merged_data["mainClass"] = data["mainClass"]
+            if "type" in data:
+                merged_data["type"] = data["type"]
+
+            merged_data["libraries"] = list(parent_data.get("libraries", [])) + list(data.get("libraries", []))
+
+            parent_args = parent_data.get("arguments", {})
+            child_args = data.get("arguments", {})
+            merged_args = {
+                "jvm": list(parent_args.get("jvm", [])) + list(child_args.get("jvm", [])),
+                "game": list(parent_args.get("game", [])) + list(child_args.get("game", [])),
+                "default-user-jvm": list(parent_args.get("default-user-jvm", [])) + list(child_args.get("default-user-jvm", []))
+            }
+            merged_data["arguments"] = merged_args
+            data = merged_data
+
+        client_jar = mc_path / f"versions/{inherits_from}/{inherits_from}.jar"
+    else:
+        client_jar = mc_path / f"versions/{version_id}/{version_id}.jar"
 
     cmd = construir_comando(
         data, os_name,
-        game_dir=base_path, libraries_dir=base_path / "libraries",
-        assets_dir=base_path / "assets", natives_dir=base_path / "natives",
-        client_jar=base_path / f"versions/{version_id}/{version_id}.jar",
+        game_dir=mc_path, libraries_dir=mc_path / "libraries",
+        assets_dir=mc_path / "assets", natives_dir=mc_path / "natives",
+        client_jar=client_jar,
         os_version="10.0.19045" if "win32" in so else "",
         )
     
