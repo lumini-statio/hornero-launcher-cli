@@ -117,12 +117,16 @@ def construir_comando(data, os_name, *, game_dir, libraries_dir, assets_dir,
 
 
 def construir_ejecutable(data, so, base, version, lanzador):
+    version_id = version["version"] if isinstance(version, dict) else str(version)
+    base_path = Path(base)
+    os_name = "windows" if "win32" in so else ("osx" if "darwin" in so else "linux")
+
     cmd = construir_comando(
-        data, so,
-        game_dir=base, libraries_dir=base / "libraries",
-        assets_dir=base / "assets", natives_dir=base / "natives",
-        client_jar=base / f"versions/{version['version']}/{version['version']}.jar",
-        os_version="10.0.19045" if so == "win32" else "",
+        data, os_name,
+        game_dir=base_path, libraries_dir=base_path / "libraries",
+        assets_dir=base_path / "assets", natives_dir=base_path / "natives",
+        client_jar=base_path / f"versions/{version_id}/{version_id}.jar",
+        os_version="10.0.19045" if "win32" in so else "",
         )
     
     print(f"\n=== {so} ===")
